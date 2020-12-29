@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
-
 	<head>
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>Document</title>
+		<title>Private Key Converter</title>
 		<style>
 			* { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; }
 			body { max-width: 42em; margin: 0 auto;}
@@ -44,51 +43,44 @@
 			function wifToDecimal(privateKey) {
 				let decimalPrivateKey = 0n;
 				const reversedPrivateKeyArray = privateKey.split('').reverse();
-
 				for (let i = 0; i < reversedPrivateKeyArray.length; i++) {
-					let multiplier = bigIntPow(58n, i);
 					let index = ALPHABET.indexOf(reversedPrivateKeyArray[i]);
-					decimalPrivateKey += BigInt(index) * multiplier;
+					decimalPrivateKey += BigInt(index) * bigIntPow(58n, i);
 				}
 				return decimalPrivateKey;
 			}
 
 			function decimalToHex(decimalPrivateKey) {
-				// Convert to hex and remove, prefix and checksum
-				// (   prefix:   first byte = first 2 chars )
-				// ( checksum: last 4 bytes = last 8 chars  )
 				return decimalPrivateKey.toString(16).slice(2, -8);
 			}
-
-			function hexToDecimal(hexPrivateKey) {
-				return BigInt('0x' + hexPrivateKey);
+			
+			function decimalToHexWithPrefix(decimalPrivateKey) {
+				return decimalPrivateKey.toString(16).slice(0, -8);
 			}
 
+			function hexToDecimal(hexPrivateKey) { return BigInt('0x' + hexPrivateKey); }
+
 			function stringToBuffer(string) {
-				var buffer = new Uint8Array(
-					string.match(/[\da-f]{2}/gi).map(function (h) {
-						return parseInt(h, 16);
-					})
+				const buffer = new Uint8Array(
+					string.match(/[\da-f]{2}/gi).map(function (h) { return parseInt(h, 16); })
 				);
 				return buffer;
 			}
 
 			function bufferToHex(buffer) {
-				var hexCodes = [];
-				var view = new DataView(buffer);
-				for (var i = 0; i < view.byteLength; i += 4) {
+				let hexCodes = [];
+				const view = new DataView(buffer);
+				for (let i = 0; i < view.byteLength; i += 4) {
 					// Using getUint32 reduces the number of iterations needed (we process 4 bytes each time)
-					// toString(16) will give the hex representation of the number without padding
-					var stringValue = view.getUint32(i).toString(16);
-					var paddedValue = ('00000000' + stringValue).slice(-8);
+					const stringValue = view.getUint32(i).toString(16);
+					const paddedValue = ('00000000' + stringValue).slice(-8);
 					hexCodes.push(paddedValue);
 				}
 				return hexCodes.join('');
 			}
 
 			async function sha256(hexString) {
-				// We transform the string into an arraybuffer.
-				var buffer = stringToBuffer(hexString);
+				const buffer = stringToBuffer(hexString);
 				const hash = await crypto.subtle.digest('SHA-256', buffer);
 				return bufferToHex(hash);
 			}
@@ -96,7 +88,6 @@
 			async function getDigestFromKey(hexPrivateKey) {
 				const hashedHexPrivateKey = await sha256(hexPrivateKey);
 				const digest = await sha256(hashedHexPrivateKey);
-
 				return digest;
 			}
 
@@ -110,8 +101,19 @@
 				return wifString.split('').reverse().join('');
 			}
 
+			function extractChecksum(decimalPrivateKey) {
+				let hexString = decimalPrivateKey.toString(16);
+				return hexString.substring(hexString.length - 8);
+			}
+
 			async function convertToNew(privateKey) {
+				if (privateKey.length < 10) throw TypeError('Inputted private key is not valid');
+				
 				const decimalPrivateKey = wifToDecimal(privateKey);
+				const originalChecksum = extractChecksum(decimalPrivateKey);
+				const validateChecksum = await getDigestFromKey(decimalToHexWithPrefix(decimalPrivateKey));
+				if (originalChecksum !== validateChecksum.slice(0, 8)) throw TypeError('Inputted private key is not valid');
+
 				const hexPrivateKey = decimalToHex(decimalPrivateKey);
 				const prefixedHexPrivateKey = '80' + hexPrivateKey;
 				const compressedPrefixedHexPrivateKey = '80' + hexPrivateKey + '01';
@@ -134,13 +136,11 @@
 			}
 
 			// PAGE RELATED FUNCTIONS
-
 			async function showNewPrivateKeys() {
 				const input = document.querySelector('#private-key-input');
 				const message = document.querySelector('#message');
 				const output = document.querySelector('#private-key-output');
 				const outputCompressed = document.querySelector('#private-key-output-compressed');
-
 				try {
 					let convertedPrivateKeyArray = await convertToNew(input.value.trim());
 					message.textContent = 'Success';
@@ -154,9 +154,9 @@
 			}
 
 			function pageLoaded() {
-				const input = document.querySelector('#private-key-input')
-				input.addEventListener('change', showNewPrivateKeys)
-				input.addEventListener('keyup', showNewPrivateKeys)
+				const input = document.querySelector('#private-key-input');
+				input.addEventListener('change', showNewPrivateKeys);
+				input.addEventListener('keyup', showNewPrivateKeys);
 			}
 
 			window.addEventListener('load', pageLoaded);
