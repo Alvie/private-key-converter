@@ -10,7 +10,7 @@ https://en.bitcoin.it/wiki/List_of_address_prefixes
 ## Why was this created?
 Some users have had trouble sweeping old address wallets where the version used had changed over time. I have seen this happen quite a few times for some Vertcoin users. This is intended to be a lightweight way of easily converting to the newer format, which can be swept into wallets.
 
-It is only 165 lines (totalling HTML, JS, CSS).
+It is only 168 lines (totalling HTML, JS, CSS).
 
 ## Is it safe to use?
 I'd like to think so, but can't guarantee it in every situation. It can be ran offline in a black box (machine with no connection to the internet). It does not depend on any packages or any external source / calls so all of the code you see is local to either the HTML document or included with your browser. The cryptographic functions used are done via the SubtleCryptp digest API from your browser (read more: https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/digest). To allow for larger integers in conversion, BigInt is also used (https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt).

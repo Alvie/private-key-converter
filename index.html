@@ -50,8 +50,9 @@
 				return decimalPrivateKey;
 			}
 
-			function decimalToHex(decimalPrivateKey) {
-				return decimalPrivateKey.toString(16).slice(2, -8);
+			function decimalToHex(decimalPrivateKey, compressed) {
+				// if compressed -10 (for compressed byte) else -8
+				return decimalPrivateKey.toString(16).slice(2, - (compressed ? 10 : 8));
 			}
 			
 			function decimalToHexWithPrefix(decimalPrivateKey) {
@@ -107,14 +108,16 @@
 			}
 
 			async function convertToNew(privateKey) {
-				if (privateKey.length < 10) throw TypeError('Inputted private key is not valid');
+				const privateKeyLength = privateKey.length;
+				if (!(privateKeyLength === 51 || privateKeyLength === 52)) throw TypeError('Inputted private key is not valid');
 				
+				const compressed = (privateKeyLength === 52); // true if length is 52
 				const decimalPrivateKey = wifToDecimal(privateKey);
 				const originalChecksum = extractChecksum(decimalPrivateKey);
 				const validateChecksum = await getDigestFromKey(decimalToHexWithPrefix(decimalPrivateKey));
 				if (originalChecksum !== validateChecksum.slice(0, 8)) throw TypeError('Inputted private key is not valid');
 
-				const hexPrivateKey = decimalToHex(decimalPrivateKey);
+				const hexPrivateKey = decimalToHex(decimalPrivateKey, compressed);
 				const prefixedHexPrivateKey = '80' + hexPrivateKey;
 				const compressedPrefixedHexPrivateKey = '80' + hexPrivateKey + '01';
 
